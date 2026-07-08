@@ -2,7 +2,7 @@
 
 >[!IMPORTANT]
 > **This ECC ONLY DO AT MOST THREE BYTES CORRECTION IN CERTAIN CASES. REFER 4.2.3.4.5 SECTION FOR MORE INFO**
-> I mean any bit errors in a single byte can be corrected.
+> All 7 bit errors in a single byte can be corrected.
 
 >[!NOTE]
 > I tested more on this and came to realise ECC can correct one byte each from ECC groups, since we are doing 3-way interleaved ECC so at most 3 bytes can be corrected.
