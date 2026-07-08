@@ -30,7 +30,12 @@ static int extensive_testing(uint8_t payload[PAYLOAD_LEN])
         for (int j = 0; j < 256; j++)
         {
             err_xor_value = j;
-            ecc_out[err_idx] = ecc_out[err_idx] ^ err_xor_value;
+            if (err_idx < 254)
+            {
+                ecc_out[err_idx] = ecc_out[err_idx] ^ err_xor_value;
+                ecc_out[err_idx + 1] = ecc_out[err_idx + 1] ^ err_xor_value;
+                ecc_out[err_idx + 2] = ecc_out[err_idx + 2] ^ err_xor_value;
+            }
             PCI_SIG_8B_ECC_256_to_250_decoder(ecc_out, ecc_decode_out, &context);
             // Should check before proceeding:
             for (int g = 0; g < 3; g++)
@@ -94,7 +99,7 @@ int main(int argc, char const *argv[])
     (void)argc;
     (void)argv;
     uint8_t payload[PAYLOAD_LEN];
-    int bytes = read_payload(payload, "/home/sriramananth/WORK/FILES/COMPANY/PCIe6.4/flit_mode_ecc_crc/test/payload_242B.txt", PAYLOAD_LEN);
+    int bytes = read_payload(payload, "../test/payload_242B.txt", PAYLOAD_LEN);
 
     if (bytes < 0)
         return 1;
