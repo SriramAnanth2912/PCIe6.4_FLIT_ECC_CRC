@@ -6,6 +6,7 @@
 #include "../src/PCI_SIG_8B_CRC.h"
 #include "../src/PCI_SIG_8B_ECC.h"
 #include "read_payload.h"
+#include "tester.h"
 
 static int extensive_testing(uint8_t payload[PAYLOAD_LEN])
 {
@@ -96,16 +97,59 @@ static int extensive_testing(uint8_t payload[PAYLOAD_LEN])
 }
 int main(int argc, char const *argv[])
 {
-    (void)argc;
-    (void)argv;
+    int result = -1;
     uint8_t payload[PAYLOAD_LEN];
-    int bytes = read_payload(payload, "../test/payload_242B.txt", PAYLOAD_LEN);
-
-    if (bytes < 0)
-        return 1;
-
-    printf("Read %d bytes\n", bytes);
-    int result = extensive_testing(payload);
-    printf("result: %d\n", result);
+    if (argc == 1)
+    {
+        int bytes = read_payload(payload, "../test/payload_242B.txt", PAYLOAD_LEN);
+        if (bytes < 0)
+            return 1;
+        printf("Read %d bytes\n", bytes);
+        return extensive_testing(payload);
+        printf("result: %d\n", result);
+    }
+    else if (argc == 2)
+    {
+        if (strcmp(argv[1], "-r") == 0)
+            return check_rand_payload(PAYLOAD_LEN);
+        else if (strcmp(argv[1], "-h") == 0)
+        {
+            print_help();
+            return 0;
+        }
+        else if (atoi(argv[1]) >= 0 && atoi(argv[1]) < PAYLOAD_LEN)
+        {
+            int bytes = read_payload(payload, "../test/payload_242B.txt", PAYLOAD_LEN);
+            if (bytes < 0)
+                return 1;
+            printf("Read %d bytes\n", bytes);
+            return check_payload_idx(payload, atoi(argv[1]));
+        }
+        else
+            print_help();
+    }
+    else if (argc == 3)
+    {
+        if (strcmp(argv[1], "-r") == 0 && (atoi(argv[2]) >= 0 && atoi(argv[2]) < PAYLOAD_LEN))
+            return check_rand_payload_idx(PAYLOAD_LEN, atoi(argv[2]));
+        else if (strcmp(argv[1], "-r") != 0 && (atoi(argv[1]) >= 0 && atoi(argv[1]) < PAYLOAD_LEN) && (atoi(argv[2]) >= 0 && atoi(argv[2]) < 256))
+        {
+            int bytes = read_payload(payload, "../test/payload_242B.txt", PAYLOAD_LEN);
+            if (bytes < 0)
+                return 1;
+            printf("Read %d bytes\n", bytes);
+            return check_payload_idx_with_xor_byte(payload, atoi(argv[1]), atoi(argv[2]));
+        }
+        else
+            print_help();
+    }
+    else if (argc == 4)
+    {
+        if (strcmp(argv[1], "-r") == 0 && (atoi(argv[2]) >= 0 && atoi(argv[2]) < PAYLOAD_LEN) && (atoi(argv[3]) >= 0 && atoi(argv[3]) < 256))
+            return check_rand_payload_idx_with_xor_byte(PAYLOAD_LEN, atoi(argv[2]), atoi(argv[3]));
+        else
+            print_help();
+    }
+    printf("BAD ARGS\n");
     return result;
 }
