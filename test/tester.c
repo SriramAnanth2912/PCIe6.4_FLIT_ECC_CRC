@@ -180,6 +180,90 @@ int check_payload_idx_with_xor_byte(uint8_t *payload, int idx, int xor_byte)
     return rc;
 }
 
+#ifdef TCS_ACTIVE
+/**
+ * @brief print the data as per nist tcs
+ *
+ * @param title char * just title
+ * @param data uint8_t * data in bytes
+ * @param data_len data vector length (number of bytes)
+ */
+void print_data_out(char *title, uint8_t *data, uint16_t data_len)
+{
+    printf("%s", title);
+    if (data_len > 8)
+    {
+        for (uint16_t i = 1; i <= data_len; i++)
+        {
+            printf("%02X ", data[i - 1]);
+            if ((i % 8) == 0)
+                printf("\n");
+        }
+    }
+    else
+    {
+        for (uint16_t i = 0; i < data_len; i++)
+        {
+            printf("%02X ", data[i]);
+        }
+    }
+}
+
+/*
+ * check_payload_idx_with_xor_byte_withtcs – fixed payload, single index, single XOR byte.
+ */
+int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_byte)
+{
+     uint8_t crc_out[PAYLOAD_LEN + 8];
+    PCI_SIG_8B_CRC(payload, crc_out);
+    print_data_out("\npayload_in_tx\n", payload, PAYLOAD_LEN);
+    print_data_out("\ncrc_out_tx\n", crc_out, PAYLOAD_LEN + 8);
+
+    uint8_t ecc_out[PAYLOAD_LEN + 8 + 6];
+    uint8_t ecc_out_temp[PAYLOAD_LEN + 8 + 6];
+    PCI_SIG_8B_ECC_250_to_256_encoder(crc_out, ecc_out);
+    print_data_out("\necc_out_tx\n", ecc_out, PAYLOAD_LEN + 8 + 6);
+
+    memcpy(ecc_out_temp, ecc_out, PAYLOAD_LEN + 8 + 6);
+    int err_idx = idx;
+    int err_xor_value = xor_byte;
+    uint8_t ecc_decode_out[PAYLOAD_LEN + 8];
+    decoder_ctx context;
+    uint8_t crc_bytes_received[8];
+    uint8_t crc_bytes_calculated[8];
+    uint8_t crc_decode_out[PAYLOAD_LEN + 8];
+
+    printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx], err_xor_value, ecc_out[err_idx]  ^ err_xor_value); // changing payload (TCP, LDDP)
+    ecc_out[err_idx] = ecc_out[err_idx] ^ err_xor_value;
+
+    PCI_SIG_8B_ECC_256_to_250_decoder(ecc_out, ecc_decode_out, &context);
+    print_data_out("\necc_decode_out_rx\n", ecc_decode_out, PAYLOAD_LEN + 8);
+
+    // Should check before proceeding:
+    for (int g = 0; g < 3; g++)
+    {
+        if (context.ECC_group[g].unc_error)
+        {
+            fprintf(stderr, "Uncorrectable ECC error in group %d\n", g);
+            printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx] ^ err_xor_value, err_xor_value,  ecc_out[err_idx]); // changing payload (TCP, LDDP)
+            return 2;                                                                                                         // distinct error code
+        }
+    }
+
+    memcpy(crc_bytes_received, ecc_decode_out + PAYLOAD_LEN, 8);
+    PCI_SIG_8B_CRC(ecc_decode_out, crc_decode_out);
+    memcpy(crc_bytes_calculated, crc_decode_out + PAYLOAD_LEN, 8);
+    print_data_out("\ncrc_decode_out_rx\n", crc_decode_out, PAYLOAD_LEN + 8);
+    print_data_out("\npayload_out_rx\n", crc_decode_out, PAYLOAD_LEN);
+
+    int result = memcmp(crc_bytes_calculated, crc_bytes_received, 8);
+    if (result == 0)
+        printf("\nidx %d xor_byte %02X: PASS\n", idx, xor_byte);
+    return result;
+}
+
+#endif
+
 /*
  * check_rand_payload_idx_with_xor_byte – random payload, single index, single XOR byte.
  *

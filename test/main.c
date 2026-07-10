@@ -7,6 +7,7 @@
 #include "../src/PCI_SIG_8B_ECC.h"
 #include "read_payload.h"
 #include "tester.h"
+#include "config.h"
 
 static int extensive_testing(uint8_t payload[PAYLOAD_LEN])
 {
@@ -138,7 +139,11 @@ int main(int argc, char const *argv[])
             if (bytes < 0)
                 return 1;
             printf("Read %d bytes\n", bytes);
-            return check_payload_idx_with_xor_byte(payload, atoi(argv[1]), atoi(argv[2]));
+            #if defined(TCS_ACTIVE)
+               return check_payload_idx_with_xor_byte_withtcs(payload, atoi(argv[1]), atoi(argv[2]));
+            #else
+                return check_payload_idx_with_xor_byte(payload, atoi(argv[1]), atoi(argv[2]));
+            #endif
         }
         else
             print_help();
