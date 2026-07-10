@@ -214,7 +214,7 @@ void print_data_out(char *title, uint8_t *data, uint16_t data_len)
  */
 int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_byte)
 {
-     uint8_t crc_out[PAYLOAD_LEN + 8];
+    uint8_t crc_out[PAYLOAD_LEN + 8];
     PCI_SIG_8B_CRC(payload, crc_out);
     print_data_out("\npayload_in_tx\n", payload, PAYLOAD_LEN);
     print_data_out("\ncrc_out_tx\n", crc_out, PAYLOAD_LEN + 8);
@@ -236,6 +236,8 @@ int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_b
     printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx], err_xor_value, ecc_out[err_idx]  ^ err_xor_value); // changing payload (TCP, LDDP)
     ecc_out[err_idx] = ecc_out[err_idx] ^ err_xor_value;
 
+    print_data_out("\necc_out_in_rx\n", ecc_out, PAYLOAD_LEN + 8 + 6);
+
     PCI_SIG_8B_ECC_256_to_250_decoder(ecc_out, ecc_decode_out, &context);
     print_data_out("\necc_decode_out_rx\n", ecc_decode_out, PAYLOAD_LEN + 8);
 
@@ -255,6 +257,67 @@ int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_b
     memcpy(crc_bytes_calculated, crc_decode_out + PAYLOAD_LEN, 8);
     print_data_out("\ncrc_decode_out_rx\n", crc_decode_out, PAYLOAD_LEN + 8);
     print_data_out("\npayload_out_rx\n", crc_decode_out, PAYLOAD_LEN);
+
+    int result = memcmp(crc_bytes_calculated, crc_bytes_received, 8);
+    if (result == 0)
+        printf("\nidx %d xor_byte %02X: PASS\n", idx, xor_byte);
+    return result;
+}
+
+/*
+ * check_rand_payload_idx_with_xor_byte_withtcs – random payload, single index, single XOR byte.
+ *
+ * Note: main.c passes atoi(argv[1]) for idx when argv[1]=="-r", which
+ * yields 0.  The signature matches the call site exactly.
+ */
+int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int xor_byte)
+{
+    srand((unsigned)time(NULL));
+    uint8_t payload[PAYLOAD_LEN];
+    rand_payload(payload, payload_len);
+
+    uint8_t crc_out[payload_len + 8];
+    PCI_SIG_8B_CRC(payload, crc_out);
+    print_data_out("\npayload_in_tx\n", payload, payload_len);
+    print_data_out("\ncrc_out_tx\n", crc_out, payload_len + 8);
+
+    uint8_t ecc_out[payload_len + 8 + 6];
+    uint8_t ecc_out_temp[payload_len + 8 + 6];
+    PCI_SIG_8B_ECC_250_to_256_encoder(crc_out, ecc_out);
+    print_data_out("\necc_out_tx\n", ecc_out, payload_len + 8 + 6);
+
+    memcpy(ecc_out_temp, ecc_out, payload_len + 8 + 6);
+    int err_idx = idx;
+    int err_xor_value = xor_byte;
+    uint8_t ecc_decode_out[payload_len + 8];
+    decoder_ctx context;
+    uint8_t crc_bytes_received[8];
+    uint8_t crc_bytes_calculated[8];
+    uint8_t crc_decode_out[payload_len + 8];
+
+    printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx], err_xor_value, ecc_out[err_idx]  ^ err_xor_value); // changing payload (TCP, LDDP)
+    ecc_out[err_idx] = ecc_out[err_idx] ^ err_xor_value;
+    print_data_out("\necc_out_in_rx\n", ecc_out, payload_len + 8 + 6);
+
+    PCI_SIG_8B_ECC_256_to_250_decoder(ecc_out, ecc_decode_out, &context);
+    print_data_out("\necc_decode_out_rx\n", ecc_decode_out, payload_len + 8);
+
+    // Should check before proceeding:
+    for (int g = 0; g < 3; g++)
+    {
+        if (context.ECC_group[g].unc_error)
+        {
+            fprintf(stderr, "Uncorrectable ECC error in group %d\n", g);
+            printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx] ^ err_xor_value, err_xor_value,  ecc_out[err_idx]); // changing payload (TCP, LDDP)
+            return 2;                                                                                                         // distinct error code
+        }
+    }
+
+    memcpy(crc_bytes_received, ecc_decode_out + payload_len, 8);
+    PCI_SIG_8B_CRC(ecc_decode_out, crc_decode_out);
+    memcpy(crc_bytes_calculated, crc_decode_out + payload_len, 8);
+    print_data_out("\ncrc_decode_out_rx\n", crc_decode_out, payload_len + 8);
+    print_data_out("\npayload_out_rx\n", crc_decode_out, payload_len);
 
     int result = memcmp(crc_bytes_calculated, crc_bytes_received, 8);
     if (result == 0)

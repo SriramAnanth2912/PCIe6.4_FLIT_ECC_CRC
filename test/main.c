@@ -151,7 +151,11 @@ int main(int argc, char const *argv[])
     else if (argc == 4)
     {
         if (strcmp(argv[1], "-r") == 0 && (atoi(argv[2]) >= 0 && atoi(argv[2]) < PAYLOAD_LEN) && (atoi(argv[3]) >= 0 && atoi(argv[3]) < 256))
-            return check_rand_payload_idx_with_xor_byte(PAYLOAD_LEN, atoi(argv[2]), atoi(argv[3]));
+        #if defined(TCS_ACTIVE)
+               return check_rand_payload_idx_with_xor_byte_withtcs(PAYLOAD_LEN,  atoi(argv[2]), atoi(argv[3]));
+            #else
+                return check_rand_payload_idx_with_xor_byte(PAYLOAD_LEN, atoi(argv[2]), atoi(argv[3]));
+            #endif
         else
             print_help();
     }

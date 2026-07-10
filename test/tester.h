@@ -17,6 +17,7 @@ void print_help(void);
 
 #ifdef TCS_ACTIVE
 int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_byte);
+int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int xor_byte);
 #endif
 
 #endif /* TESTER_H */
