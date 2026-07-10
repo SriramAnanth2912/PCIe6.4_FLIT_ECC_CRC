@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdbool.h>
 
 #include "PCI_SIG_8B_ECC.h"

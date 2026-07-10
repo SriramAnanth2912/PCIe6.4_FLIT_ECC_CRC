@@ -248,7 +248,7 @@ int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_b
         {
             fprintf(stderr, "Uncorrectable ECC error in group %d\n", g);
             printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx] ^ err_xor_value, err_xor_value,  ecc_out[err_idx]); // changing payload (TCP, LDDP)
-            return 2;                                                                                                         // distinct error code
+            goto unc_error;                                                                                                        // distinct error code
         }
     }
 
@@ -261,7 +261,29 @@ int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_b
     int result = memcmp(crc_bytes_calculated, crc_bytes_received, 8);
     if (result == 0)
         printf("\nidx %d xor_byte %02X: PASS\n", idx, xor_byte);
+    for (int g = 0; g < 3; g++)
+    {
+        printf("\n\nGroup %d\n", g);
+        printf("check syndrome  = %02X\n", context.ECC_group[g].synd_check);
+        printf("parity syndrome = %02X\n", context.ECC_group[g].synd_parity);
+        printf("single          = %d\n", context.ECC_group[g].single_error);
+        printf("unc             = %d\n", context.ECC_group[g].unc_error);
+        printf("error byte      = %d\n", context.ECC_group[g].error_byte);
+        printf("magnitude       = %02X\n", context.ECC_group[g].error_magnitude);
+    }
     return result;
+    unc_error:
+    for (int g = 0; g < 3; g++)
+    {
+        printf("\n\nGroup %d\n", g);
+        printf("check syndrome  = %02X\n", context.ECC_group[g].synd_check);
+        printf("parity syndrome = %02X\n", context.ECC_group[g].synd_parity);
+        printf("single          = %d\n", context.ECC_group[g].single_error);
+        printf("unc             = %d\n", context.ECC_group[g].unc_error);
+        printf("error byte      = %d\n", context.ECC_group[g].error_byte);
+        printf("magnitude       = %02X\n", context.ECC_group[g].error_magnitude);
+    }
+    return 2;
 }
 
 /*
@@ -308,8 +330,7 @@ int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int x
         if (context.ECC_group[g].unc_error)
         {
             fprintf(stderr, "Uncorrectable ECC error in group %d\n", g);
-            printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx] ^ err_xor_value, err_xor_value,  ecc_out[err_idx]); // changing payload (TCP, LDDP)
-            return 2;                                                                                                         // distinct error code
+            goto unc_error;                                                                                                     // distinct error code
         }
     }
 
@@ -322,7 +343,30 @@ int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int x
     int result = memcmp(crc_bytes_calculated, crc_bytes_received, 8);
     if (result == 0)
         printf("\nidx %d xor_byte %02X: PASS\n", idx, xor_byte);
+    for (int g = 0; g < 3; g++)
+    {
+        printf("\n\nGroup %d\n", g);
+        printf("check syndrome  = %02X\n", context.ECC_group[g].synd_check);
+        printf("parity syndrome = %02X\n", context.ECC_group[g].synd_parity);
+        printf("single          = %d\n", context.ECC_group[g].single_error);
+        printf("unc             = %d\n", context.ECC_group[g].unc_error);
+        printf("error byte      = %d\n", context.ECC_group[g].error_byte);
+        printf("magnitude       = %02X\n", context.ECC_group[g].error_magnitude);
+    }
     return result;
+
+    unc_error:
+    for (int g = 0; g < 3; g++)
+    {
+        printf("\n\nGroup %d\n", g);
+        printf("check syndrome  = %02X\n", context.ECC_group[g].synd_check);
+        printf("parity syndrome = %02X\n", context.ECC_group[g].synd_parity);
+        printf("single          = %d\n", context.ECC_group[g].single_error);
+        printf("unc             = %d\n", context.ECC_group[g].unc_error);
+        printf("error byte      = %d\n", context.ECC_group[g].error_byte);
+        printf("magnitude       = %02X\n", context.ECC_group[g].error_magnitude);
+    }
+    return 2;
 }
 
 #endif
