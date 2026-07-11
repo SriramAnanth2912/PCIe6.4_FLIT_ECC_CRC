@@ -13,11 +13,7 @@ int check_payload_idx(uint8_t *payload, int idx);
 int check_rand_payload_idx(int payload_len, int idx);
 int check_payload_idx_with_xor_byte(uint8_t *payload, int idx, int xor_byte);
 int check_rand_payload_idx_with_xor_byte(int payload_len, int idx, int xor_byte);
+int generate_tests(uint16_t n_tests);
 void print_help(void);
-
-#ifdef TCS_ACTIVE
-int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_byte);
-int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int xor_byte);
-#endif
 
 #endif /* TESTER_H */

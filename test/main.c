@@ -118,6 +118,11 @@ int main(int argc, char const *argv[])
             print_help();
             return 0;
         }
+        else if (strcmp(argv[1], "-t") == 0)
+        {
+            printf("generating only 1 testvector\n");
+            return generate_tests(1);
+        }
         else if (atoi(argv[1]) >= 0 && atoi(argv[1]) < PAYLOAD_LEN)
         {
             int bytes = read_payload(payload, "../test/payload_242B.txt", PAYLOAD_LEN);
@@ -133,6 +138,10 @@ int main(int argc, char const *argv[])
     {
         if (strcmp(argv[1], "-r") == 0 && (atoi(argv[2]) >= 0 && atoi(argv[2]) < PAYLOAD_LEN))
             return check_rand_payload_idx(PAYLOAD_LEN, atoi(argv[2]));
+        else if (strcmp(argv[1], "-t") == 0)
+        {
+            return generate_tests((uint16_t)atoi(argv[2]));
+        }
         else if (strcmp(argv[1], "-r") != 0 && (atoi(argv[1]) >= 0 && atoi(argv[1]) < PAYLOAD_LEN) && (atoi(argv[2]) >= 0 && atoi(argv[2]) < 256))
         {
             int bytes = read_payload(payload, "../test/payload_242B.txt", PAYLOAD_LEN);

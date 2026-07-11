@@ -1,6 +1,7 @@
 CC      := gcc
 CFLAGS  := -Wall -Wextra -ggdb -std=c11 -g -I. 
 TARGET  := test/main
+TESTVECTORS:= testvectors
 
 SRC = \
     src/PCI_SIG_8B_ECC.c\
@@ -11,7 +12,7 @@ SRC = \
 
 OBJ = $(SRC:.c=.o)
 
-.PHONY: all run clean rand help
+.PHONY: all run clean rand help test
 
 all: $(TARGET)
 
@@ -22,13 +23,16 @@ $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -rf $(OBJ) $(TARGET) $(TESTVECTORS)/
 
 run: $(TARGET)
 	cd test && ./main $(ARGS)
 
 rand: $(TARGET)
 	cd test && ./main -r $(ARGS)
+
+test: $(TARGET)
+	cd test && ./main -t $(ARGS)
 
 help: $(TARGET)
 	cd test && ./main -h

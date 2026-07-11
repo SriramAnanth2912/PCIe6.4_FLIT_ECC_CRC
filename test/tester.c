@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
 
 #include "tester.h"
 #include "../src/PCI_SIG_8B_CRC.h"
@@ -392,6 +393,60 @@ int check_rand_payload_idx_with_xor_byte(int payload_len, int idx, int xor_byte)
     return rc;
 }
 
+void write_hex_file(const char *filename, const uint8_t *data, int length)
+{
+    FILE *f = fopen(filename, "a");
+    if (!f)
+    {
+        perror("fopen");
+        return;
+    }
+
+    for (int i = 0; i < length; i++)
+        fprintf(f, "%02X", data[i]);
+    fprintf(f, "\n");
+    fclose(f);
+}
+
+int generate_tests(uint16_t n_tests)
+{
+    if (n_tests == 0)
+    {
+        perror("no tests generated for n_tests 0\n");
+        return 0;
+    }
+    uint8_t payload[PAYLOAD_LEN];
+    uint8_t ecc_out[ECC_OUT_LEN];
+    uint8_t crc_out[CRC_OUT_LEN];
+
+    char filename[128];
+
+    srand((unsigned)time(NULL));
+    printf("generating only %d testvectors\n", n_tests);
+    for (uint16_t i = 0; i < n_tests; i++)
+    {
+        if (i == 0)
+            mkdir("../testvectors", 0777); // creating directory if doesn't exists
+        rand_payload(payload, PAYLOAD_LEN);
+
+        sprintf(filename, "../testvectors/payload.txt");
+        write_hex_file(filename, payload, PAYLOAD_LEN);
+
+        PCI_SIG_8B_CRC(payload, crc_out);
+        sprintf(filename, "../testvectors/crc_out.txt");
+        write_hex_file(filename, crc_out, CRC_OUT_LEN);
+
+        PCI_SIG_8B_ECC_250_to_256_encoder(crc_out, ecc_out);
+        sprintf(filename, "../testvectors/ecc_out.txt");
+        write_hex_file(filename, ecc_out, ECC_OUT_LEN);
+
+        memset(payload, 0, PAYLOAD_LEN);
+        memset(crc_out, 0, CRC_OUT_LEN);
+        memset(ecc_out, 0, ECC_OUT_LEN);
+    }
+    return 0;
+}
+
 void print_help(void)
 {
     printf("Usage: In test folder\n"
@@ -400,7 +455,8 @@ void print_help(void)
            "  ./main <idx>                  test single error index, all XOR values\n"
            "  ./main -r <idx>               same with random payload\n"
            "  ./main <idx> <xor_byte>       test single index + single XOR byte\n"
-           "  ./main -r <idx> <xor_byte>    same with random payload\n");
+           "  ./main -r <idx> <xor_byte>    same with random payload\n"
+           "  ./main -t <n_tests>           generate testvectors for n_tests\n");
 
     printf("OR \n"
            "  make run                           extensive test on payload_242B.txt\n"
@@ -408,5 +464,6 @@ void print_help(void)
            "  make run ARGS=\"<idx>\"              test single error index, all XOR values\n"
            "  make rand ARGS=\"<idx>\"             same with random payload\n"
            "  make run ARGS=\"<idx> <xor_byte>\"   test single index + single XOR byte\n"
-           "  make rand ARGS=\"<idx> <xor_byte>\"  same with random payload\n");
+           "  make rand ARGS=\"<idx> <xor_byte>\"  same with random payload\n"
+           "  make test ARGS=\"<n_tests>\"         generate testvectors for n_tests\n");
 }

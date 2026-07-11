@@ -74,4 +74,5 @@ The key design insight tying all three together: **ECC corrects first, then CRC 
 1. `make` to get executable
 2. `make run` to run extensively check for all idx and with all possible xor value for each byte idx position in the payload.
 3. `make rand` for random payload **242 byte** size.
-4. `make help` for more commands.
+4. `make test ARGS="<n_tests>"` for n_tests number of testvector generation in testvectors folder in .txt format.
+5. `make help` for more commands.
