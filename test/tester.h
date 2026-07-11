@@ -2,7 +2,6 @@
 #define TESTER_H
 
 #include <stdint.h>
-#include "config.h"
 
 #define PAYLOAD_LEN 242
 #define CRC_OUT_LEN (PAYLOAD_LEN + 8)
