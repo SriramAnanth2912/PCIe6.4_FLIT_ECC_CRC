@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #include "tester.h"
 #include "../src/PCI_SIG_8B_CRC.h"
@@ -234,7 +235,7 @@ int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_b
     uint8_t crc_bytes_calculated[8];
     uint8_t crc_decode_out[PAYLOAD_LEN + 8];
 
-    printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx], err_xor_value, ecc_out[err_idx]  ^ err_xor_value); // changing payload (TCP, LDDP)
+    printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx], err_xor_value, ecc_out[err_idx] ^ err_xor_value); // changing payload (TCP, LDDP)
     ecc_out[err_idx] = ecc_out[err_idx] ^ err_xor_value;
 
     print_data_out("\necc_out_in_rx\n", ecc_out, PAYLOAD_LEN + 8 + 6);
@@ -248,8 +249,8 @@ int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_b
         if (context.ECC_group[g].unc_error)
         {
             fprintf(stderr, "Uncorrectable ECC error in group %d\n", g);
-            printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx] ^ err_xor_value, err_xor_value,  ecc_out[err_idx]); // changing payload (TCP, LDDP)
-            goto unc_error;                                                                                                        // distinct error code
+            printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx] ^ err_xor_value, err_xor_value, ecc_out[err_idx]); // changing payload (TCP, LDDP)
+            goto unc_error;                                                                                                                                               // distinct error code
         }
     }
 
@@ -273,7 +274,7 @@ int check_payload_idx_with_xor_byte_withtcs(uint8_t *payload, int idx, int xor_b
         printf("magnitude       = %02X\n", context.ECC_group[g].error_magnitude);
     }
     return result;
-    unc_error:
+unc_error:
     for (int g = 0; g < 3; g++)
     {
         printf("\n\nGroup %d\n", g);
@@ -318,7 +319,7 @@ int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int x
     uint8_t crc_bytes_calculated[8];
     uint8_t crc_decode_out[payload_len + 8];
 
-    printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx], err_xor_value, ecc_out[err_idx]  ^ err_xor_value); // changing payload (TCP, LDDP)
+    printf("\nidx: %d, original_hex: %02X, xor_byte: %02X, changed_to_hex: %02X \n", err_idx, ecc_out[err_idx], err_xor_value, ecc_out[err_idx] ^ err_xor_value); // changing payload (TCP, LDDP)
     ecc_out[err_idx] = ecc_out[err_idx] ^ err_xor_value;
     print_data_out("\necc_out_in_rx\n", ecc_out, payload_len + 8 + 6);
 
@@ -331,7 +332,7 @@ int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int x
         if (context.ECC_group[g].unc_error)
         {
             fprintf(stderr, "Uncorrectable ECC error in group %d\n", g);
-            goto unc_error;                                                                                                     // distinct error code
+            goto unc_error; // distinct error code
         }
     }
 
@@ -356,7 +357,7 @@ int check_rand_payload_idx_with_xor_byte_withtcs(int payload_len, int idx, int x
     }
     return result;
 
-    unc_error:
+unc_error:
     for (int g = 0; g < 3; g++)
     {
         printf("\n\nGroup %d\n", g);
@@ -393,7 +394,15 @@ int check_rand_payload_idx_with_xor_byte(int payload_len, int idx, int xor_byte)
     return rc;
 }
 
-void write_hex_file(const char *filename, const uint8_t *data, int length)
+/**
+ * @brief print in textfile
+ *
+ * @param filename
+ * @param data
+ * @param length
+ * @param row_wise if 0 then prints in 1 column one after another
+ */
+static void write_hex_file(const char *filename, const uint8_t *data, int length, bool row_wise)
 {
     FILE *f = fopen(filename, "a");
     if (!f)
@@ -402,9 +411,17 @@ void write_hex_file(const char *filename, const uint8_t *data, int length)
         return;
     }
 
-    for (int i = 0; i < length; i++)
-        fprintf(f, "%02X", data[i]);
-    fprintf(f, "\n");
+    if (row_wise == 1)
+    {
+        for (int i = 0; i < length; i++)
+            fprintf(f, "%02X", data[i]);
+        fprintf(f, "\n");
+    }
+    else
+    {
+        for (int i = 0; i < length; i++)
+            fprintf(f, "%02X\n", data[i]);
+    }
     fclose(f);
 }
 
@@ -422,7 +439,8 @@ int generate_tests(uint16_t n_tests)
     char filename[128];
 
     srand((unsigned)time(NULL));
-    printf("generating only %d testvectors\n", n_tests);
+    if (n_tests > 1)
+        printf("generating only %d testvectors\n", n_tests);
     for (uint16_t i = 0; i < n_tests; i++)
     {
         if (i == 0)
@@ -430,15 +448,15 @@ int generate_tests(uint16_t n_tests)
         rand_payload(payload, PAYLOAD_LEN);
 
         sprintf(filename, "../testvectors/payload.txt");
-        write_hex_file(filename, payload, PAYLOAD_LEN);
+        write_hex_file(filename, payload, PAYLOAD_LEN, 0);
 
         PCI_SIG_8B_CRC(payload, crc_out);
         sprintf(filename, "../testvectors/crc_out.txt");
-        write_hex_file(filename, crc_out, CRC_OUT_LEN);
+        write_hex_file(filename, crc_out, CRC_OUT_LEN, 0);
 
         PCI_SIG_8B_ECC_250_to_256_encoder(crc_out, ecc_out);
         sprintf(filename, "../testvectors/ecc_out.txt");
-        write_hex_file(filename, ecc_out, ECC_OUT_LEN);
+        write_hex_file(filename, ecc_out, ECC_OUT_LEN, 0);
 
         memset(payload, 0, PAYLOAD_LEN);
         memset(crc_out, 0, CRC_OUT_LEN);
