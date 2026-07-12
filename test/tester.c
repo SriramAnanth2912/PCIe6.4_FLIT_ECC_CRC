@@ -425,7 +425,7 @@ static void write_hex_file(const char *filename, const uint8_t *data, int length
     fclose(f);
 }
 
-int generate_tests(uint16_t n_tests)
+int generate_tests(const uint16_t n_tests)
 {
     if (n_tests == 0)
     {
@@ -435,12 +435,21 @@ int generate_tests(uint16_t n_tests)
     uint8_t payload[PAYLOAD_LEN];
     uint8_t ecc_out[ECC_OUT_LEN];
     uint8_t crc_out[CRC_OUT_LEN];
+    uint8_t ecc_decode_out[CRC_OUT_LEN];
+    uint8_t crc_decode_out[CRC_OUT_LEN];
+    decoder_ctx ctx;
 
     char filename[128];
 
     srand((unsigned)time(NULL));
     if (n_tests > 1)
         printf("generating only %d testvectors\n", n_tests);
+
+    uint8_t err_idx[n_tests];
+    uint8_t err_xor_byte[n_tests];
+    rand_payload(err_idx, n_tests);
+    rand_payload(err_xor_byte, n_tests);
+
     for (uint16_t i = 0; i < n_tests; i++)
     {
         if (i == 0)
@@ -458,10 +467,28 @@ int generate_tests(uint16_t n_tests)
         sprintf(filename, "../testvectors/ecc_out.txt");
         write_hex_file(filename, ecc_out, ECC_OUT_LEN, 0);
 
+        ecc_out[err_idx[i]] ^= err_xor_byte[i];
+
+        sprintf(filename, "../testvectors/ecc_decode_in.txt");
+        write_hex_file(filename, ecc_out, ECC_OUT_LEN, 0);
+
+        PCI_SIG_8B_ECC_256_to_250_decoder(ecc_out, ecc_decode_out, &ctx);
+        sprintf(filename, "../testvectors/ecc_decode_out.txt");
+        write_hex_file(filename, ecc_decode_out, CRC_OUT_LEN, 0);
+
+        PCI_SIG_8B_CRC(ecc_decode_out, crc_decode_out);
+        sprintf(filename, "../testvectors/crc_decode_out.txt");
+        write_hex_file(filename, crc_decode_out, CRC_OUT_LEN, 0);
+
         memset(payload, 0, PAYLOAD_LEN);
         memset(crc_out, 0, CRC_OUT_LEN);
         memset(ecc_out, 0, ECC_OUT_LEN);
     }
+    sprintf(filename, "../testvectors/err_idx.txt");
+    write_hex_file(filename, err_idx, n_tests, 0);
+
+    sprintf(filename, "../testvectors/err_xor_byte.txt");
+    write_hex_file(filename, err_xor_byte, n_tests, 0);
     return 0;
 }
 
