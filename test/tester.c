@@ -414,22 +414,90 @@ static void write_hex_file(const char *filename, const uint8_t *data, int length
     if (row_wise == 1)
     {
         for (int i = 0; i < length; i++)
-            fprintf(f, "%02X", data[i]);
+            fprintf(f, "%d", data[i]);
         fprintf(f, "\n");
     }
     else
     {
         for (int i = 0; i < length; i++)
-            fprintf(f, "%02X\n", data[i]);
+            fprintf(f, "%d\n", data[i]);
     }
     fclose(f);
 }
 
-int generate_tests(const uint16_t n_tests)
+static int read_payload(uint8_t *payload, const char *filepath, uint16_t payload_len_bytes)
+{
+    FILE *fp = fopen(filepath, "r");
+    if (fp == NULL)
+    {
+        perror("fopen");
+        return -1;
+    }
+
+    unsigned int value;
+    uint16_t index = 0;
+
+    while (index < payload_len_bytes &&
+           fscanf(fp, "%d", &value) == 1)
+    {
+        payload[index++] = (uint8_t)value;
+    }
+
+    fclose(fp);
+
+    if (index != payload_len_bytes)
+    {
+        printf("Warning: Expected %u bytes, read %u bytes\n",
+               payload_len_bytes, index);
+    }
+
+    return index;
+}
+
+static void generate_from_custom_payload(char *filepath, uint16_t n_tests)
+{
+    uint8_t payload[PAYLOAD_LEN];
+    uint8_t ecc_out[ECC_OUT_LEN];
+    uint8_t crc_out[CRC_OUT_LEN];
+
+    int bytes = read_payload(payload, filepath, PAYLOAD_LEN);
+    if (bytes < 0)
+        perror("no payload exists\n");
+    printf("Read %d bytes\n", bytes);
+    char filename[128];
+
+    if (n_tests >= 1)
+        printf("generating only %d testvectors\n", n_tests);
+    for (uint16_t i = 0; i < n_tests; i++)
+    {
+        if (i == 0)
+        {
+            mkdir("../testvectors", 0777);
+            mkdir("../testvectors/custom", 0777); // creating directory if doesn't exists
+        }
+
+        sprintf(filename, "../testvectors/custom/payload.txt");
+        write_hex_file(filename, payload, PAYLOAD_LEN, 0);
+
+        PCI_SIG_8B_CRC(payload, crc_out);
+        sprintf(filename, "../testvectors/custom/crc_out.txt");
+        write_hex_file(filename, crc_out, CRC_OUT_LEN, 0);
+
+        PCI_SIG_8B_ECC_250_to_256_encoder(crc_out, ecc_out);
+        sprintf(filename, "../testvectors/custom/ecc_out.txt");
+        write_hex_file(filename, ecc_out, ECC_OUT_LEN, 0);
+
+        memset(payload, 0, PAYLOAD_LEN);
+        memset(crc_out, 0, CRC_OUT_LEN);
+        memset(ecc_out, 0, ECC_OUT_LEN);
+    }
+}
+int generate_tests(uint16_t n_tests)
 {
     if (n_tests == 0)
     {
-        perror("no tests generated for n_tests 0\n");
+        // reading custom payload_test.txt
+        generate_from_custom_payload("../test/payload_test.txt", 1);
         return 0;
     }
     uint8_t payload[PAYLOAD_LEN];

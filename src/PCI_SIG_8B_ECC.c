@@ -24,7 +24,7 @@ static void ECC_84_to_86_encoder(uint8_t data_in[84], uint8_t data_out[86])
     data_out[85] = parity;
 }
 
-static void ECC_84_to_86_decoder(uint8_t data_in[86], uint8_t data_out[84], ECCG *ctx)
+static void ECC_86_to_84_decoder(uint8_t data_in[86], uint8_t data_out[84], ECCG *ctx)
 {
 
     uint8_t encoded_data[86];
@@ -64,6 +64,7 @@ static void ECC_84_to_86_decoder(uint8_t data_in[86], uint8_t data_out[84], ECCG
         ctx->single_error = 1;
         error_byte_result = 85;
         ctx->error_byte = error_byte_result & 0x7F;
+        ctx->error_magnitude = ctx->synd_parity;
         break;
 
     case 0x02:
@@ -140,9 +141,9 @@ void PCI_SIG_8B_ECC_256_to_250_decoder(uint8_t data_in[256], uint8_t data_out[25
     dec_data_in2[84] = data_in[251];
     dec_data_in2[85] = data_in[254];
 
-    ECC_84_to_86_decoder(dec_data_in0, dec_data_out0, &(context->ECC_group[0]));
-    ECC_84_to_86_decoder(dec_data_in1, dec_data_out1, &(context->ECC_group[1]));
-    ECC_84_to_86_decoder(dec_data_in2, dec_data_out2, &(context->ECC_group[2]));
+    ECC_86_to_84_decoder(dec_data_in0, dec_data_out0, &(context->ECC_group[0]));
+    ECC_86_to_84_decoder(dec_data_in1, dec_data_out1, &(context->ECC_group[1]));
+    ECC_86_to_84_decoder(dec_data_in2, dec_data_out2, &(context->ECC_group[2]));
 
     for (int i = 0; i < 83; i++)
     {
