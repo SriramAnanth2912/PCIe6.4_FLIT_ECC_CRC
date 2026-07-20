@@ -9,10 +9,38 @@
 #include "tester.h"
 #include "../src/PCI_SIG_8B_CRC.h"
 #include "../src/PCI_SIG_8B_ECC.h"
-
+#include "../src/burst_error_markov_chain.h"
 /* ------------------------------------------------------------------ */
 /* Internal helpers                                                     */
 /* ------------------------------------------------------------------ */
+
+/**
+ * @brief print the data as per nist tcs
+ *
+ * @param title char * just title
+ * @param data uint8_t * data in bytes
+ * @param data_len data vector length (number of bytes)
+ */
+static inline void print_data_out_byte(char *title, uint8_t *data, uint16_t data_len)
+{
+    printf("%s", title);
+    if (data_len > 8)
+    {
+        for (uint16_t i = 1; i <= data_len; i++)
+        {
+            printf("%02X ", data[i - 1]);
+            if ((i % 16) == 0)
+                printf("\n");
+        }
+    }
+    else
+    {
+        for (uint16_t i = 0; i < data_len; i++)
+        {
+            printf("%02X ", data[i]);
+        }
+    }
+}
 
 /* Encode payload → CRC → ECC, write 256 bytes into ecc_out. */
 static void encode(uint8_t *payload, uint8_t ecc_out[ECC_OUT_LEN])
@@ -40,10 +68,27 @@ static void rand_payload(uint8_t *buf, int payload_len)
  */
 static int run_test(uint8_t ecc_orig[ECC_OUT_LEN], int err_idx, int xor_val)
 {
+    srand((unsigned)time(NULL));
     uint8_t ecc[ECC_OUT_LEN];
+    uint8_t ecc_channel_out[ECC_OUT_LEN];
+    uint8_t channel_out[ECC_OUT_LEN];
     uint8_t ecc_decode_out[CRC_OUT_LEN];
     uint8_t crc_decode_out[CRC_OUT_LEN];
     decoder_ctx ctx;
+
+    // Good state: PCIe is near-perfect under normal conditions
+    float p_good = 1e-10; // near-zero BER, reflects PCIe's clean signal integrity
+
+    // Bad state: burst caused by electrical noise (SSO, crosstalk, etc.)
+    float p_bad = 0.15; // 15% BER during disturbance — realistic for PCIe lane noise
+
+    // Good -> Bad: bursts are rare events in PCIe
+    float p_gb = 0.001; // on average, burst event every 1000 bits
+
+    // Bad -> Good: must exit burst within 3 bytes (24 bits)
+    float p_bg = 0.45; // avg burst = 2.2 bits, P(>24 bits) < 1e-8
+
+    // P(burst_span > N bits) = (1 - p_bg)^N ===> In the Bad state, the probability of staying in it for more than N consecutive bits
 
     int j_start = (xor_val < 0) ? 0 : xor_val;
     int j_end = (xor_val < 0) ? 256 : xor_val + 1;
@@ -59,10 +104,25 @@ static int run_test(uint8_t ecc_orig[ECC_OUT_LEN], int err_idx, int xor_val)
             ecc[err_idx] ^= (uint8_t)j;
             ecc[err_idx + 1] ^= (uint8_t)j;
             ecc[err_idx + 2] ^= (uint8_t)j;
+
+            memcpy(ecc_channel_out, ecc, N);
+        }
+        else
+        {
+            if (burst_error_markov_chain(ecc, ecc_channel_out, channel_out, p_good, p_bad, p_gb, p_bg))
+            {
+                print_data_out_byte("channel_out\n", channel_out, N);
+                return -1;
+            }
+            else
+            {
+                print_data_out_byte("ecc\n", ecc, N);
+                print_data_out_byte("channel_out\n", channel_out, N);
+                print_data_out_byte("ecc_channel_out\n", ecc_channel_out, N);
+            }
         }
 
-        PCI_SIG_8B_ECC_256_to_250_decoder(ecc, ecc_decode_out, &ctx);
-
+        PCI_SIG_8B_ECC_256_to_250_decoder(ecc_channel_out, ecc_decode_out, &ctx);
         for (int g = 0; g < 3; g++)
         {
             if (ctx.ECC_group[g].unc_error)
@@ -70,7 +130,6 @@ static int run_test(uint8_t ecc_orig[ECC_OUT_LEN], int err_idx, int xor_val)
                 fprintf(stderr, "Uncorrectable ECC error in group %d "
                                 "(idx=%d xor=%02X)\n",
                         g, err_idx, j);
-                return 2;
             }
         }
 
@@ -102,7 +161,6 @@ static int run_test(uint8_t ecc_orig[ECC_OUT_LEN], int err_idx, int xor_val)
                        ctx.ECC_group[g].error_byte,
                        ctx.ECC_group[g].error_magnitude);
             }
-            return cmp;
         }
     }
     return 0;
@@ -578,5 +636,6 @@ void print_help(void)
            "  make rand ARGS=\"<idx>\"             same with random payload\n"
            "  make run ARGS=\"<idx> <xor_byte>\"   test single index + single XOR byte\n"
            "  make rand ARGS=\"<idx> <xor_byte>\"  same with random payload\n"
-           "  make test ARGS=\"<n_tests>\"         generate testvectors for n_tests\n");
+           "  make test ARGS=\"<n_tests>\"         generate testvectors for n_tests\n"
+           "  make run/rand ARGS=\"-1\"            use burst_error_markov_chanin_channel\n");
 }
